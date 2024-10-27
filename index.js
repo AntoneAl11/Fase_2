@@ -13,3 +13,16 @@ app.use(session({
     resave: false, //No volver a guardar la session si no ah cambiado
     saveUninitilized: true //Guardar sesion no inicializada
 }));
+
+//Definir la ruta para la pagina de inicio de sesión
+app.get("/", (req,res) =>{
+    const {username, password} =req.body;
+
+    //Verificar las credenciales del usuario
+    if (username === "admin" && password === "password"){
+        req.session.loggedIn = true; //Marcar sesion como autenticada
+        res.redirect("/dashboard"); //redrigir al dashboard
+    } else {
+        res.send("Error de autenticaci´ón: Usuario o Contraseña incorrectos");
+    }
+});
