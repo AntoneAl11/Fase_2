@@ -1,23 +1,20 @@
-// Importar las dependencias necesarias
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 
-// Crear una aplicación Express
 const app = express();
 const PORT = 3000;
 
-// Configurar el middleware para parsear el cuerpo de las solicitudes
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// Configurar el middleware para manejar las sesiones
 app.use(session({
-  secret: 'secreto',  // Clave secreta para firmar la sesión
-  resave: false,      // No volver a guardar la sesión si no ha cambiado
-  saveUninitialized: true  // Guardar sesión no inicializada
+  secret: 'secreto',
+  resave: false,
+  saveUninitialized: true
 }));
 
-// Definir la ruta para la página de inicio de sesión
+let tareas = [];
+
+// Página de inicio de sesión
 app.get('/', (req, res) => {
   res.send(`
     <form action="/login" method="post">
@@ -28,30 +25,100 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Manejar el inicio de sesión cuando se envían los datos del formulario
+// Manejar el inicio de sesión
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  
-  // Verificar las credenciales del usuario
   if (username === 'admin' && password === 'password') {
-    req.session.loggedIn = true;  // Marcar sesión como autenticada
-    res.redirect('/dashboard');   // Redirigir al dashboard
+    req.session.loggedIn = true;
+    req.session.username = username;
+    res.redirect('/dashboard');
   } else {
     res.send('Error de autenticación: Usuario o contraseña incorrectos.');
   }
 });
 
-// Definir la ruta para el dashboard protegido
+// Página protegida del dashboard
 app.get('/dashboard', (req, res) => {
-  // Verificar si la sesión está autenticada
   if (req.session.loggedIn) {
-    res.send('Bienvenido al Dashboard!');
+    res.send(`
+      <h1>Bienvenido al Dashboard!</h1>
+      <p>Usuario registrado: ${req.session.username}</p>
+      <a href="/logout">Cerrar sesión</a>
+      <h2>Registrar Nueva Tarea</h2>
+      <form id="taskForm" action="/add-task" method="post" onsubmit="return validateForm()">
+        <label>Código de la tarea (id):</label><input type="text" name="id" required/><br/>
+        <label>Título de la tarea:</label><input type="text" name="title" required/><br/>
+        <label>Descripción de la tarea:</label><input type="text" name="description" required/><br/>
+        <label>Fecha de inicio:</label><input type="date" name="startDate" required/><br/>
+        <label>Nombre del cliente:</label><input type="text" name="clientName" required/><br/>
+        <label>Id del proyecto:</label><input type="text" name="projectId" required/><br/>
+        <label>Sección de comentarios:</label><textarea name="comments" required></textarea><br/>
+        <label>Estatus:</label><input type="text" name="status" value="Por hacer" readonly/><br/>
+        <button type="submit">Registrar tarea</button>
+      </form>
+      <h2>Lista de Tareas</h2>
+      <table border="1">
+        <tr>
+          <th>Código</th>
+          <th>Título</th>
+          <th>Descripción</th>
+          <th>Fecha de inicio</th>
+          <th>Nombre del cliente</th>
+          <th>Id del proyecto</th>
+          <th>Comentarios</th>
+          <th>Estatus</th>
+        </tr>
+        ${tareas.map(tarea => `
+          <tr>
+            <td>${tarea.id}</td>
+            <td>${tarea.title}</td>
+            <td>${tarea.description}</td>
+            <td>${tarea.startDate}</td>
+            <td>${tarea.clientName}</td>
+            <td>${tarea.projectId}</td>
+            <td>${tarea.comments}</td>
+            <td>${tarea.status}</td>
+          </tr>
+        `).join('')}
+      </table>
+      <script>
+        function validateForm() {
+          const form = document.getElementById('taskForm');
+          const inputs = form.querySelectorAll('input[required], textarea[required]');
+          for (let input of inputs) {
+            if (!input.value) {
+              alert('Por favor, completa todos los campos.');
+              return false;
+            }
+          }
+          return true;
+        }
+      </script>
+    `);
   } else {
-    res.redirect('/');  // Redirigir a la página de inicio de sesión si no está autenticado
+    res.redirect('/');
   }
 });
 
-// Iniciar el servidor en el puerto especificado
+// Manejar el registro de nuevas tareas
+app.post('/add-task', (req, res) => {
+  const { id, title, description, startDate, clientName, projectId, comments, status } = req.body;
+  const nuevaTarea = { id, title, description, startDate, clientName, projectId, comments, status };
+  tareas.push(nuevaTarea);
+  res.redirect('/dashboard');
+});
+
+// Manejar el cierre de sesión
+app.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      return res.send('Error al cerrar sesión');
+    }
+    res.redirect('/');
+  });
+});
+
+// Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor funcionando en http://localhost:${PORT}`);
 });
